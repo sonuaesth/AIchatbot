@@ -1,0 +1,29 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE / tooling
+.vs/
+.vscode/
+
+# Logs / temp
+*.log
+*.tmp
+
+# OS
+.DS_Store
+
+# NuGet
+*.nupkg
+**/packages/
+
+# ASP.NET scaffolding
+Areas/**/Views/_ViewImports.cshtml
+Areas/**/Views/_ViewStart.cshtml
