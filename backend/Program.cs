@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using AiChat.Backend.Persistence;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
@@ -7,6 +11,11 @@ builder.Services.AddControllers();
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    var cs = builder.Configuration.GetConnectionString("Default");
+    options.UseNpgsql(cs);
+});
 
 var app = builder.Build();
 

@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:16
+    container_name: chat_pg
+    environment:
+      POSTGRES_DB: chatdb
+      POSTGRES_USER: chatuser
+      POSTGRES_PASSWORD: chatpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - chat_pg_data:/var/lib/postgresql/data
+  backend:
+    build: ./backend
+    container_name: chat_backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: Host=localhost;Port=5432;Database=chatdb;Username=chatuser;Password=chatpass
+    ports:
+      - "5184:5184"
+
+volumes:
+  chat_pg_data:
