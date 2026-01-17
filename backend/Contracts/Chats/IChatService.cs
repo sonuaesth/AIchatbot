@@ -9,4 +9,5 @@ public interface IChatService
     Task<IReadOnlyList<ChatDto>> GetChatsAsync(Guid userId);
     Task<IReadOnlyList<MessageDto>> GetMessagesAsync(Guid chatId, Guid userId);
     Task<MessageDto> SendMessageAsync(Guid chatId, SendMessageRequest request);
+    Task<MessageDto> SendAndReplyAsync(Guid chatId, SendMessageRequest request);
 }

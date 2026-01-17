@@ -70,7 +70,7 @@ public class ChatsController : ControllerBase
 
         try
         {
-            var message = await _chatService.SendMessageAsync(chatId, request);
+            var message = await _chatService.SendAndReplyAsync(chatId, request);
             return Ok(message);
         }
         catch (KeyNotFoundException ex)

@@ -37,7 +37,8 @@ builder.Services.AddHttpClient("OpenAI", (sp, client) =>
 {
     var options = sp.GetRequiredService<IOptions<OpenAIOptions>>().Value;
 
-    client.BaseAddress = new Uri(options.BaseUrl);
+    var baseUrl = options.BaseUrl.TrimEnd('/') + "/";
+    client.BaseAddress = new Uri(baseUrl);
     client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
 
     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);

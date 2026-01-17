@@ -1,19 +1,23 @@
 using AiChat.Backend.Contracts.Chats;
 using AiChat.Backend.Contracts.Chats.Requests;
 using AiChat.Backend.Contracts.Chats.Responses;
+using AiChat.Backend.Contracts.OpenAI;
 using AiChat.Backend.Domain.Entities;
 using AiChat.Backend.Domain.Enums;
 using AiChat.Backend.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace AiChat.Backend.Services;
 
 public class ChatService : IChatService
 {
+    private readonly IOpenAIClient _openAIClient;
     private readonly AppDbContext _db;
-    public ChatService(AppDbContext db)
+    public ChatService(AppDbContext db, IOpenAIClient openAiClient)
     {
         _db = db;
+        _openAIClient = openAiClient;
     }
 
     public async Task<ChatDto> CreateChatAsync(CreateChatRequest request)
@@ -107,6 +111,69 @@ public class ChatService : IChatService
         }
         await _db.SaveChangesAsync();
         return ToMessageDto(message);
+    }
+
+    public async Task<MessageDto> SendAndReplyAsync(Guid chatId, SendMessageRequest request)
+    {
+        if(chatId == Guid.Empty)throw new ArgumentException("Chat id is required");
+        if(request.UserId == Guid.Empty)throw new ArgumentException("User id is required");
+        if(string.IsNullOrEmpty(request.Text))throw new ArgumentException("Text is required");
+
+        var chat = await _db.Chats
+            .FirstOrDefaultAsync(x => x.Id == chatId && x.UserId == request.UserId);
+        if(chat == null)throw new KeyNotFoundException("Chat not found");
+
+        var userMsg = new Message
+        {
+            Id = Guid.NewGuid(),
+            ChatId = chatId,
+            Role = ChatRole.User,
+            Text = request.Text.Trim(),
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        _db.Messages.Add(userMsg);
+        
+        if(string.IsNullOrWhiteSpace(chat.Title))
+        {
+            chat.Title = MakeTitleFromText(userMsg.Text);
+        }
+        await _db.SaveChangesAsync();
+
+        const int maxHistory = 20;
+
+        var history = await _db.Messages
+            .AsNoTracking()
+            .Where(x => x.ChatId == chatId)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(maxHistory)
+            .Select(x => new OpenAIChatMessage
+            {
+                Role = x.Role == ChatRole.User ? "user" 
+                :x.Role == ChatRole.Assistant ? "assistant"
+                : "system",
+                Content = x.Text
+            })
+            .ToListAsync();
+        
+        var assistantText = await _openAIClient.GetChatCompletionAsync(
+            systemPrompt: "You are a helpful assistant.",
+            messages: history
+            );
+
+        var assistantMsg = new Message
+        {
+            Id = Guid.NewGuid(),
+            ChatId = chatId,
+            Role = ChatRole.Assistant,
+            Text = assistantText,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        _db.Messages.Add(assistantMsg);
+        await _db.SaveChangesAsync();
+        return ToMessageDto(assistantMsg);
+        
+
     }
 
     private static ChatDto ToChatDto(Chat chat)
