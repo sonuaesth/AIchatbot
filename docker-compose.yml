@@ -15,9 +15,11 @@ services:
     container_name: chat_backend
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Default: Host=localhost;Port=5432;Database=chatdb;Username=chatuser;Password=chatpass
+      ConnectionStrings__Default: Host=db;Port=5432;Database=chatdb;Username=chatuser;Password=chatpass
     ports:
       - "5184:5184"
+    depends_on:
+      - db
 
 volumes:
   chat_pg_data:
