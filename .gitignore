@@ -27,3 +27,6 @@
 # ASP.NET scaffolding
 Areas/**/Views/_ViewImports.cshtml
 Areas/**/Views/_ViewStart.cshtml
+
+# Environmental variables
+.env

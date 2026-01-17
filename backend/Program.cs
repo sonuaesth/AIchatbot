@@ -1,7 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using AiChat.Backend.Persistence;
 using AiChat.Backend.Services;
+using AiChat.Backend.Services.OpenAI;
 using AiChat.Backend.Contracts.Chats;
+using AiChat.Backend.Contracts.Options;
+using AiChat.Backend.Contracts.OpenAI;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +20,30 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     var cs = builder.Configuration.GetConnectionString("Default");
     options.UseNpgsql(cs);
 });
+
+builder.Services
+    .AddOptions<OpenAIOptions>()
+    .Bind(builder.Configuration.GetSection(OpenAIOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services
+    .AddOptions<ChatOptions>()
+    .Bind(builder.Configuration.GetSection(ChatOptions.SectionName))
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<IValidateOptions<OpenAIOptions>, OpenAIOptionsValidator>();
+
+builder.Services.AddHttpClient("OpenAI", (sp, client) =>
+{
+    var options = sp.GetRequiredService<IOptions<OpenAIOptions>>().Value;
+
+    client.BaseAddress = new Uri(options.BaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+
+    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", options.ApiKey);
+});
+
+builder.Services.AddScoped<IOpenAIClient, OpenAIClient>();
 
 var app = builder.Build();
 
