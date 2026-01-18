@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16
+    container_name: chat_pg
+    environment:
+      POSTGRES_DB: chatdb
+      POSTGRES_USER: chatuser
+      POSTGRES_PASSWORD: chatpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - chat_pg_data:/var/lib/postgresql/data
+  backend:
+    build: ./backend
+    container_name: chat_backend
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      #db
+      ConnectionStrings__Default: Host=db;Port=5432;Database=chatdb;Username=chatuser;Password=chatpass
+      #openai
+      OpenAI__ApiKey: ${OPENAI_API_KEY}
+      OpenAI__BaseUrl: https://api.openai.com/v1
+      OpenAI__Model: gpt-4.1-mini
+      #chat
+      Chat__Temperature: "0.7"
+      Chat__MaxHistoryMessages: "20"
+    ports:
+      - "5184:5184"
+    depends_on:
+      - db
+
+volumes:
+  chat_pg_data:
