@@ -1,0 +1,26 @@
+export type Guid = string;
+
+export interface ChatDto {
+  id: Guid;
+  userId: Guid;
+  title: string | null;
+  createdAt: string;
+}
+
+export interface MessageDto {
+  id: Guid;
+  chatId: Guid;
+  role: string | null;
+  text: string | null;
+  createdAt: string;
+}
+
+export interface CreateChatRequest {
+  userId: Guid;
+  title?: string;
+}
+
+export interface SendMessageRequest {
+  userId: Guid;
+  text: string;
+}
