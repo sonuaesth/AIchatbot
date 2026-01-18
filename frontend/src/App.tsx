@@ -101,13 +101,14 @@ export default function App() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "320px 1fr",
+          gridTemplateColumns: "300px 1fr",
           height: "80vh",
+          width: "80vw",
         }}
       >
         <aside
           style={{
-            borderRight: "1px solid #ddd",
+            borderRight: "3px solid #747474ff",
             padding: 12,
             overflow: "auto",
           }}
@@ -179,7 +180,7 @@ export default function App() {
 
           <div
             style={{
-              borderTop: "1px solid #ddd",
+              // borderTop: "1px solid #ddd",
               padding: 12,
               display: "flex",
               gap: 8,
@@ -189,7 +190,14 @@ export default function App() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Type message..."
-              style={{ flex: 1, padding: 10 }}
+              style={{
+                flex: 1,
+                padding: 20,
+                borderRadius: 8,
+                backgroundColor: "#e6e6e6ff",
+                fontSize: 18,
+                border: "1px solid #ddd",
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -200,6 +208,15 @@ export default function App() {
             />
             <button
               onClick={onSend}
+              style={{
+                padding: "0 12px",
+                borderRadius: 8,
+                border: "1px solid #3c3c3cff",
+                backgroundColor: "#232323ff",
+                color: "white",
+                fontSize: 18,
+                cursor: "pointer",
+              }}
               disabled={!activeChatId || loading || !text.trim()}
             >
               {loading ? "..." : "Send"}

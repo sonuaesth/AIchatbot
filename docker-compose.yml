@@ -29,5 +29,13 @@ services:
     depends_on:
       - db
 
+  frontend:
+    build: ./frontend
+    container_name: chat_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
 volumes:
   chat_pg_data:
