@@ -17,7 +17,7 @@ export interface MessageDto {
 
 export interface CreateChatRequest {
   userId: Guid;
-  title?: string;
+  title?: string | null;
 }
 
 export interface SendMessageRequest {
