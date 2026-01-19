@@ -8,5 +8,6 @@ export default defineConfig({
     proxy: {
       "/api": "http://backend:5184",
     },
+    allowedHosts: ["amorphia.xyz", "www.amorphia.xyz"],
   },
 });
