@@ -13,6 +13,41 @@ function getOrCreateUserId(): Guid {
   return userId;
 }
 
+function renderMessageText(text: string | null) {
+  if (!text) return null;
+
+  const lines = text.split("\n");
+  return lines.map((line, lineIndex) => {
+    const headingMatch = line.match(/^###\s+(.+)$/);
+    if (headingMatch) {
+      return (
+        <div
+          key={`h-${lineIndex}`}
+          style={{ fontSize: 18, fontWeight: 700, marginTop: 6 }}
+        >
+          {headingMatch[1]}
+        </div>
+      );
+    }
+
+    const parts = line.split(/\*\*(.+?)\*\*/g);
+    return (
+      <div key={`l-${lineIndex}`}>
+        {parts.map((part, i) => {
+          const isBold = i % 2 === 1;
+          return isBold ? (
+            <strong key={`b-${lineIndex}-${i}`} style={{ fontSize: 16 }}>
+              {part}
+            </strong>
+          ) : (
+            <span key={`t-${lineIndex}-${i}`}>{part}</span>
+          );
+        })}
+      </div>
+    );
+  });
+}
+
 export default function App() {
   const userId = useMemo(() => getOrCreateUserId(), []);
   const [chats, setChats] = useState<ChatDto[]>([]);
@@ -21,6 +56,7 @@ export default function App() {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const [typingDots, setTypingDots] = useState(".");
 
   async function refreshChats() {
     const chats = await getChats(userId);
@@ -96,6 +132,19 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeChatId]);
 
+  useEffect(() => {
+    if (!loading) {
+      setTypingDots(".");
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      setTypingDots((prev) => (prev.length >= 3 ? "." : `${prev}.`));
+    }, 400);
+
+    return () => clearInterval(intervalId);
+  }, [loading]);
+
   return (
     <>
       <div
@@ -108,8 +157,8 @@ export default function App() {
       >
         <aside
           style={{
-            borderRight: "3px solid #747474ff",
-            padding: 12,
+            borderRight: "2px solid #b2b2b2ff",
+            padding: 10,
             overflow: "auto",
           }}
         >
@@ -117,7 +166,14 @@ export default function App() {
             <button onClick={onNewChat}>+ New chat</button>
           </div>
 
-          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+          <div
+            style={{
+              fontSize: 12,
+              opacity: 0.7,
+              marginBottom: 8,
+              textAlign: "left",
+            }}
+          >
             userId: {userId}
           </div>
 
@@ -130,7 +186,7 @@ export default function App() {
                 textAlign: "left",
                 padding: 10,
                 marginBottom: 6,
-                border: "1px solid #7f7f7fff",
+                border: "1px solid #a8a8a8ff",
                 background: c.id === activeChatId ? "#f0f0f0ff" : "grey",
                 color: c.id === activeChatId ? "black" : "white",
                 borderRadius: 8,
@@ -169,12 +225,27 @@ export default function App() {
             {!activeChatId ? (
               <div>Create a chat on the left</div>
             ) : (
-              messages.map((m) => (
-                <div key={m.id} style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>{m.role}</div>
-                  <div style={{ whiteSpace: "pre-wrap" }}>{m.text}</div>
-                </div>
-              ))
+              <>
+                {messages.map((m) => (
+                  <div
+                    key={m.id}
+                    style={{ marginBottom: 12, textAlign: "left" }}
+                  >
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>{m.role}</div>
+                    <div style={{ whiteSpace: "pre-wrap" }}>
+                      {renderMessageText(m.text)}
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div style={{ marginBottom: 12, textAlign: "left" }}>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>Assistant</div>
+                    <div style={{ fontStyle: "italic", opacity: 0.8 }}>
+                      Assistant is typing{typingDots}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
