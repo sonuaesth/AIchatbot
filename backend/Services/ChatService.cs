@@ -2,11 +2,12 @@ using AiChat.Backend.Contracts.Chats;
 using AiChat.Backend.Contracts.Chats.Requests;
 using AiChat.Backend.Contracts.Chats.Responses;
 using AiChat.Backend.Contracts.OpenAI;
+using AiChat.Backend.Contracts.Options;
 using AiChat.Backend.Domain.Entities;
 using AiChat.Backend.Domain.Enums;
 using AiChat.Backend.Persistence;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AiChat.Backend.Services;
 
@@ -14,10 +15,12 @@ public class ChatService : IChatService
 {
     private readonly IOpenAIClient _openAIClient;
     private readonly AppDbContext _db;
-    public ChatService(AppDbContext db, IOpenAIClient openAiClient)
+    private readonly ChatOptions _chatOptions;
+    public ChatService(AppDbContext db, IOpenAIClient openAiClient, IOptions<ChatOptions> chatOptions)
     {
         _db = db;
         _openAIClient = openAiClient;
+        _chatOptions = chatOptions.Value;
     }
 
     public async Task<ChatDto> CreateChatAsync(CreateChatRequest request)
@@ -140,13 +143,11 @@ public class ChatService : IChatService
         }
         await _db.SaveChangesAsync();
 
-        const int maxHistory = 20;
-
         var history = await _db.Messages
             .AsNoTracking()
             .Where(x => x.ChatId == chatId)
             .OrderByDescending(x => x.CreatedAt)
-            .Take(maxHistory)
+            .Take(_chatOptions.MaxHistoryMessages)
             .Select(x => new OpenAIChatMessage
             {
                 Role = x.Role == ChatRole.User ? "user" 
@@ -155,9 +156,11 @@ public class ChatService : IChatService
                 Content = x.Text
             })
             .ToListAsync();
-        
+
+        history.Reverse();
+
         var assistantText = await _openAIClient.GetChatCompletionAsync(
-            systemPrompt: "You are a helpful assistant.",
+            systemPrompt: _chatOptions.SystemPrompt,
             messages: history
             );
 
