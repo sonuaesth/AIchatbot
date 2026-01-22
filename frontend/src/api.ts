@@ -7,7 +7,8 @@ import type {
 } from "./types";
 
 // const API = import.meta.env.VITE_API_BASE_URL || "";
-const API = import.meta.env.VITE_API_BASE_URL || "/api";
+const API = import.meta.env.VITE_API_BASE_URL;
+// const API = "";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(API + path, {
