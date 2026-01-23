@@ -6,6 +6,9 @@ using AiChat.Backend.Contracts.Options;
 using AiChat.Backend.Domain.Entities;
 using AiChat.Backend.Domain.Enums;
 using AiChat.Backend.Persistence;
+
+using System.Runtime.CompilerServices;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -21,6 +24,30 @@ public class ChatService : IChatService
         _db = db;
         _openAIClient = openAiClient;
         _chatOptions = chatOptions.Value;
+    }
+
+    public async IAsyncEnumerable<StreamEvent> SendAndReplyStreamAsync(
+        Guid chatId, 
+        SendMessageRequest request, 
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        var sb = new StringBuilder();
+
+        await foreach (var delta in _openAIClient.StreamChatCompletionAsync(
+            _chatOptions.SystemPrompt,
+            new OpenAIChatMessage[]
+            {
+                new() { Role = "user", Content = request.Text.Trim() }
+            },
+            ct))
+        {
+            if (string.IsNullOrEmpty(delta)) continue;
+            sb.Append(delta);
+            Console.WriteLine($"DELTA_LEN={delta?.Length} | {delta}");
+            // yield return new StreamEvent("data", sb.ToString());
+            yield return new StreamEvent("data", Text: delta);
+        }
+        yield return new StreamEvent("done");
     }
 
     public async Task<ChatDto> CreateChatAsync(CreateChatRequest request)
