@@ -24,3 +24,9 @@ export interface SendMessageRequest {
   userId: Guid;
   text: string;
 }
+
+export type StreamEvent = {
+  Type: "data" | "done" | "error";
+  Text?: string | null;
+  Error?: string | null;
+};
