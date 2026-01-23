@@ -1,5 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
-import { createChat, getChats, getMessages, sendMessage } from "./api";
+import { useState, useEffect, useMemo, useRef } from "react";
+import {
+  createChat,
+  getChats,
+  getMessages,
+  sendMessage,
+  sendMessagesStream,
+} from "./api";
 import type { ChatDto, MessageDto, Guid } from "./types";
 import "./App.css";
 
@@ -57,6 +63,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [typingDots, setTypingDots] = useState(".");
+  const abortRef = useRef<AbortController | null>(null);
 
   async function refreshChats() {
     const chats = await getChats(userId);
@@ -86,6 +93,10 @@ export default function App() {
     setErr("");
     setLoading(true);
 
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const tempUserMsg: MessageDto = {
       id: `temp-${Date.now()}`,
       chatId: activeChatId,
@@ -94,22 +105,58 @@ export default function App() {
       createdAt: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, tempUserMsg]);
+    const tempAssistantId = `temp-a-${Date.now()}`;
+    const tempAssistantMsg: MessageDto = {
+      id: tempAssistantId,
+      chatId: activeChatId,
+      role: "Assistant",
+      text: "",
+      createdAt: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, tempUserMsg, tempAssistantMsg]);
     setText("");
 
-    try {
-      const assistantMsg = await sendMessage(activeChatId, { userId, text: t });
+    let pending = "";
+    let raf: number | null = null;
 
-      setMessages((prev) => [
-        ...prev.filter((x) => x.id !== tempUserMsg.id),
-        tempUserMsg,
-        assistantMsg,
-      ]);
+    const flush = () => {
+      const chunk = pending;
+      pending = "";
+      raf = null;
+      if (!chunk) return;
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          String(m.id) === tempAssistantId
+            ? { ...m, text: (m.text ?? "") + chunk }
+            : m
+        )
+      );
+    };
+
+    try {
+      await sendMessagesStream(
+        activeChatId,
+        { userId, text: t },
+        (token: string) => {
+          pending += token;
+          if (raf === null) raf = requestAnimationFrame(flush);
+        },
+        controller.signal
+      );
+
+      if (pending) flush();
+
+      // const fresh = await getMessages(activeChatId, userId);
+      // setMessages(fresh);
 
       await refreshChats();
     } catch (e) {
-      setErr(String((e as Error).message || "Something went wrong"));
-      setMessages((prev) => prev.filter((x) => x.id !== tempUserMsg.id));
+      const msg = String((e as Error).message || "Something went wrong");
+      setErr(msg);
+
+      setMessages((prev) => prev.filter((x) => x.id !== tempAssistantId));
       setText(t);
     } finally {
       setLoading(false);
@@ -268,6 +315,7 @@ export default function App() {
                 backgroundColor: "#e6e6e6ff",
                 fontSize: 18,
                 border: "1px solid #ddd",
+                color: "black",
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {

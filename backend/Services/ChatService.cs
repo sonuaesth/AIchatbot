@@ -31,6 +31,32 @@ public class ChatService : IChatService
         SendMessageRequest request, 
         [EnumeratorCancellation] CancellationToken ct)
     {
+        if(chatId == Guid.Empty)throw new ArgumentException("Chat id is required");
+        if(request.UserId == Guid.Empty)throw new ArgumentException("User id is required");
+        if(string.IsNullOrEmpty(request.Text))throw new ArgumentException("Text is required");
+
+        var chat = await _db.Chats
+            .FirstOrDefaultAsync(x => x.Id == chatId && x.UserId == request.UserId, ct);
+        if(chat == null)throw new KeyNotFoundException("Chat not found");
+
+        var userMsg = new Message
+        {
+            Id = Guid.NewGuid(),
+            ChatId = chatId,
+            Role = ChatRole.User,
+            Text = request.Text.Trim(),
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        _db.Messages.Add(userMsg);
+
+        if(string.IsNullOrWhiteSpace(chat.Title))
+        {
+            chat.Title = MakeTitleFromText(userMsg.Text);
+        }
+
+        await _db.SaveChangesAsync(ct);
+
         var sb = new StringBuilder();
 
         await foreach (var delta in _openAIClient.StreamChatCompletionAsync(
@@ -47,6 +73,22 @@ public class ChatService : IChatService
             // yield return new StreamEvent("data", sb.ToString());
             yield return new StreamEvent("data", Text: delta);
         }
+
+        var assistantText = sb.ToString().Trim();
+        if (!string.IsNullOrWhiteSpace(assistantText))
+        {
+            var assistantMsg = new Message
+            {
+                Id = Guid.NewGuid(),
+                ChatId = chatId,
+                Role = ChatRole.Assistant,
+                Text = assistantText,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            _db.Messages.Add(assistantMsg);
+            await _db.SaveChangesAsync(ct);
+        }
+
         yield return new StreamEvent("done");
     }
 
