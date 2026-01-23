@@ -6,4 +6,9 @@ public interface IOpenAIClient
         string systemPrompt,
         IReadOnlyList<OpenAIChatMessage> messages,
         CancellationToken ct = default);
+
+    IAsyncEnumerable<string> StreamChatCompletionAsync(
+        string systemPrompt,
+        IReadOnlyList<OpenAIChatMessage> messages,
+        CancellationToken ct = default);
 }

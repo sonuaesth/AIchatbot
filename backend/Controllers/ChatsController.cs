@@ -1,5 +1,9 @@
 using AiChat.Backend.Contracts.Chats;
 using AiChat.Backend.Contracts.Chats.Requests;
+using AiChat.Backend.Contracts.Chats.Responses;
+
+using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AiChat.Backend.Controllers;
@@ -80,6 +84,47 @@ public class ChatsController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("{chatId:guid}/message/stream")]
+    public async Task SendMessageStream(
+        [FromRoute] Guid chatId, 
+        [FromBody] SendMessageRequest request,
+        CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            Response.StatusCode = 400;
+            return;
+        }
+
+        Response.StatusCode = 200;
+        Response.ContentType = "application/x-ndjson; charset=utf-8";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+
+        try
+        {
+            await foreach (var evt in _chatService.SendAndReplyStreamAsync(chatId, request, ct))
+            {
+                var line = JsonSerializer.Serialize(evt) + "\n";
+                var bytes = Encoding.UTF8.GetBytes(line);
+
+                await Response.BodyWriter.WriteAsync(Encoding.UTF8.GetBytes($"{JsonSerializer.Serialize(evt)}\n"));
+                await Response.BodyWriter.FlushAsync(ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // ignore
+        }
+        catch (Exception ex)
+        {
+            var err = new StreamEvent("error", Error: ex.Message);
+            var line = JsonSerializer.Serialize(err) + "\n";
+            await Response.Body.WriteAsync(Encoding.UTF8.GetBytes(line), ct);
+            await Response.Body.FlushAsync(ct);
         }
     }
 
